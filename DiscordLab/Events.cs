@@ -11,10 +11,9 @@ using PlayerStatsSystem;
 using PluginAPI.Core;
 using PluginAPI.Core.Attributes;
 using PluginAPI.Enums;
+using PluginAPI.Events;
 using RemoteAdmin;
 using System;
-using System.Runtime.InteropServices;
-using UnityEngine;
 using static RoundSummary;
 
 namespace DiscordLab
@@ -24,225 +23,198 @@ namespace DiscordLab
 		public static DateTime RoundEndTime = new DateTime(), RoundStartTime = new DateTime();
 		public static bool RoundInProgress = false;
 
+
+		[PluginEvent(ServerEventType.WarheadDetonation)]
+		public void WarheadDetonateEvent() => DiscordLab.Bot.SendMessage(new Msg($"The alpha warhead has detonated"));
+
+		[PluginEvent(ServerEventType.WaitingForPlayers)]
+		public void WaitingForPlayersEvent() => DiscordLab.Bot.SendMessage(new Msg("The server is ready and waiting for players"));
+
+		[PluginEvent(ServerEventType.PlayerHandcuff)]
+		public void PlayerDisarmEvent(PlayerHandcuffEvent args) => DiscordLab.Bot.SendMessage(new Msg($"**{args.Player.Nickname} has disarmed {args.Target.Nickname}**"));
+
+		[PluginEvent(ServerEventType.WarheadStop)]
+		public void WarheadStopEvent(WarheadStopEvent args) => DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} has suspended the alpha warhead countdown"));
+
+		[PluginEvent(ServerEventType.PlayerEscape)]
+		public void PlayerEscapeEvent(PlayerEscapeEvent args) => DiscordLab.Bot.SendMessage(new Msg($"{args.Player.Nickname} escaped the facility and became {args.NewRole}"));
+
+		[PluginEvent(ServerEventType.PlayerRemoveHandcuffs)]
+		public void PlayerUndisarmEvent(PlayerRemoveHandcuffsEvent args) => DiscordLab.Bot.SendMessage(new Msg($"**{args.Player.Nickname} has freed {args.Target.Nickname}**"));
+
+		[PluginEvent(ServerEventType.PlayerThrowProjectile)]
+		public void ThrowProjectileEvent(PlayerThrowProjectileEvent args) => DiscordLab.Bot.SendMessage(new Msg($"{args.Thrower.Nickname} threw grenade {args.Item.ItemTypeId}"));
+
+		[PluginEvent(ServerEventType.PlayerMuted)]
+		public void PlayerMuteEvent(PlayerMutedEvent args) => DiscordLab.Bot.SendMessage(new Msg($"{args.Issuer.ToLogString()} has {(args.IsIntercom ? "intercom" : "")}muted {args.Player.ToLogString()}"));
+
+		[PluginEvent(ServerEventType.PlayerUnmuted)]
+		public void PlayerUnmuteEvent(PlayerUnmutedEvent args) => DiscordLab.Bot.SendMessage(new Msg($"{args.Issuer.ToLogString()} has {(args.IsIntercom ? "intercom" : "")}unmuted {args.Player.ToLogString()}"));
+
 		[PluginEvent(ServerEventType.PlayerJoined)]
-		public void PlayerJoinedEvent(Player plr) => DiscordLab.Bot.SendMessage(new Msg($"**{plr.Nickname} ({plr.UserId} from ||~~{plr.IpAddress}~~||) has joined the server**"));
+		public void PlayerJoinedEvent(PlayerJoinedEvent args) => DiscordLab.Bot.SendMessage(new Msg($"**{args.Player.Nickname} ({args.Player.UserId} from ||~~{args.Player.IpAddress}~~||) has joined the server**"));
+
+		[PluginEvent(ServerEventType.PlayerBanned)]
+		public void PlayerBannedEvent(PlayerBannedEvent args) => DiscordLab.Bot.SendMessage(new Msg($"**New Ban!**```autohotkey\nUser: {args.Player.ToLogString()}\nAdmin: {args.Issuer.ToLogString()}\nDuration: {args.Duration / 60} {(args.Duration / 60 > 1 ? "minutes" : "minute")}\nReason: {(string.IsNullOrEmpty(args.Reason) ? "No reason provided" : args.Reason)}```"));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 		[PluginEvent(ServerEventType.PlayerLeft)]
-		public void PlayerLeftEvent(Player plr)
+		public void PlayerLeftEvent(PlayerLeftEvent args)
 		{
-			if (plr.IsServer || !string.IsNullOrEmpty(plr.UserId))
-				DiscordLab.Bot.SendMessage(new Msg($"{plr.Nickname} ({plr.UserId}) has disconnected from the server"));
+			if (args.Player.IsServer || !string.IsNullOrEmpty(args.Player.UserId))
+				DiscordLab.Bot.SendMessage(new Msg($"{args.Player.Nickname} ({args.Player.UserId}) has disconnected from the server"));
 		}
 
 		[PluginEvent(ServerEventType.PlayerDying)]
-		public void PlayerDeathEvent(Player victim, Player attacker, DamageHandlerBase damageHandler)
+		public void PlayerDeathEvent(PlayerDyingEvent args)
 		{
-			if (victim == null || !RoundInProgress)
-				return;
-			var uDH = damageHandler as UniversalDamageHandler;
-
-			if (damageHandler is AttackerDamageHandler aDH)
+			try
 			{
-				if (aDH.IsSuicide)
-					DiscordLab.Bot.SendMessage(new Msg($"{victim.ToLogString()} killed themselves using {aDH.GetDamageSource()}"));
-				else if (aDH.IsFriendlyFire || IsFF(victim, attacker))
-					DiscordLab.Bot.SendMessage(new Msg($"**Teamkill** \n```autohotkey\nPlayer: {attacker.Role} {attacker.ToLogString()} \nKilled: {victim.Role} {victim.ToLogString()}\nUsing: {aDH.GetDamageSource()}```"));
-				else if (victim.IsDisarmed && !attacker.ReferenceHub.IsSCP())
-					DiscordLab.Bot.SendMessage(new Msg($"__Disarmed Kill__\n```autohotkey\nPlayer: {attacker.Role} {attacker.ToLogString()} \nKilled: {victim.Role} {victim.ToLogString()}\nUsing: {aDH.GetDamageSource()}```"));
+
+				if (args.Player == null || !RoundInProgress)
+					return;
+				var uDH = args.DamageHandler as UniversalDamageHandler;
+
+				if (args.DamageHandler is AttackerDamageHandler aDH)
+				{
+					if (aDH.IsSuicide)
+						DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} killed themselves using {aDH.GetDamageSource()}"));
+					else if (aDH.IsFriendlyFire || Extensions.IsFF(args.Player, args.Attacker))
+						DiscordLab.Bot.SendMessage(new Msg($"**Teamkill** \n```autohotkey\nPlayer: {args.Attacker.Role} {args.Attacker.ToLogString()} \nKilled: {args.Player.Role} {args.Player.ToLogString()}\nUsing: {aDH.GetDamageSource()}```"));
+					else if (args.Player.IsDisarmed && !args.Attacker.ReferenceHub.IsSCP())
+						DiscordLab.Bot.SendMessage(new Msg($"__Disarmed Kill__\n```autohotkey\nPlayer: {args.Attacker.Role} {args.Attacker.ToLogString()} \nKilled: {args.Player.Role} {args.Player.ToLogString()}\nUsing: {aDH.GetDamageSource()}```"));
+					else
+						DiscordLab.Bot.SendMessage(new Msg($"{args.Attacker.Role} {args.Attacker.Nickname} killed {args.Player.Role} {args.Player.Nickname} using {aDH.GetDamageSource()}"));
+				}
+				else if (args.DamageHandler is WarheadDamageHandler wDH)
+					DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} was vaporized by alpha warhead"));
 				else
-					DiscordLab.Bot.SendMessage(new Msg($"{attacker.Role} {attacker.Nickname} killed {victim.Role} {victim.Nickname} using {aDH.GetDamageSource()}"));
+					DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} died to {DeathTranslations.TranslationsById[uDH.TranslationId].LogLabel}"));
 			}
-			else if (damageHandler is WarheadDamageHandler wDH)
-				DiscordLab.Bot.SendMessage(new Msg($"{victim.ToLogString()} was vaporized by alpha warhead"));
-			else
-				DiscordLab.Bot.SendMessage(new Msg($"{victim.ToLogString()} died to {DeathTranslations.TranslationsById[uDH.TranslationId].LogLabel}"));
+			catch(Exception e)
+			{
+				Log.Info(args.DamageHandler.ServerLogsText);
+			}
 		}
 
 		[PluginEvent(ServerEventType.GrenadeExploded)]
-		public void GrenadeExplodeEvent(Footprint thrower, Vector3 position, ItemPickupBase grenade)
+		public void GrenadeExplodeEvent(GrenadeExplodedEvent args)
 		{
-			if (!thrower.IsSet)
+			if (!args.Thrower.IsSet)
 				DiscordLab.Bot.SendMessage(new Msg($"Frag grenade of (UNKNOWN) has exploded"));
 
-			if (grenade is ExplosionGrenade expGrenade)
-				DiscordLab.Bot.SendMessage(new Msg($"Frag grenade of {thrower.Nickname} has exploded"));
-			else if (grenade is FlashbangGrenade flshGrenade)
-				DiscordLab.Bot.SendMessage(new Msg($"Flashbang of {thrower.Nickname} has exploded"));
-			else if (grenade is Scp018Projectile scp018)
-				DiscordLab.Bot.SendMessage(new Msg($"SCP-018 of {thrower.Nickname} has exploded"));
+			if (args.Grenade is ExplosionGrenade expGrenade)
+				DiscordLab.Bot.SendMessage(new Msg($"Frag grenade of {args.Thrower.Nickname} has exploded"));
+			else if (args.Grenade is FlashbangGrenade flshGrenade)
+				DiscordLab.Bot.SendMessage(new Msg($"Flashbang of {args.Thrower.Nickname} has exploded"));
+			else if (args.Grenade is Scp018Projectile scp018)
+				DiscordLab.Bot.SendMessage(new Msg($"SCP-018 of {args.Thrower.Nickname} has exploded"));
 			else
-				DiscordLab.Bot.SendMessage(new Msg($"Grenade of unknown type thrown by {thrower.Nickname} has exploded"));
+				DiscordLab.Bot.SendMessage(new Msg($"Grenade of unknown type thrown by {args.Thrower.Nickname} has exploded"));
 		}
 
-		[PluginEvent(ServerEventType.PlayerThrowProjectile)]
-		public void ThrowProjectileEvent(Player thrower, ThrowableItem item, ThrowableItem.ProjectileSettings projectileSettings, bool fullForce)
-		{
-			DiscordLab.Bot.SendMessage(new Msg($"{thrower.Nickname} threw grenade {item.ItemTypeId}"));
-		}
 
-		[PluginEvent(ServerEventType.PlayerBanned)]
-		public void PlayerBannedEvent(Player player, CommandSender commandSender, string reason, long duration)
-		{
-			if (!(commandSender is PlayerCommandSender pCS))
-				return;
 
-			var admin = Player.Get(pCS.PlayerId);
 
-			DiscordLab.Bot.SendMessage(new Msg($"**New Ban!**```autohotkey\nUser: {player.ToLogString()}\nAdmin: {admin.ToLogString()}\nDuration: {duration / 60} {(duration / 60 > 1 ? "minutes" : "minute")}\nReason: {(string.IsNullOrEmpty(reason) ? "No reason provided" : reason)}```"));
-		}
 
-		[PluginEvent(ServerEventType.PlayerEscape)]
-		public void PlayerEscapeEvent(Player player, RoleTypeId newRole) => DiscordLab.Bot.SendMessage(new Msg($"{player.Nickname} escaped the facility and became {newRole}"));
 
-		[PluginEvent(ServerEventType.PlayerHandcuff)]
-		public void PlayerDisarmEvent(Player player, Player target) => DiscordLab.Bot.SendMessage(new Msg($"**{player.Nickname} has disarmed {target.Nickname}**"));
 
-		[PluginEvent(ServerEventType.PlayerRemoveHandcuffs)]
-		public void PlayerUndisarmEvent(Player player, Player target) => DiscordLab.Bot.SendMessage(new Msg($"**{player.Nickname} has freed {target.Nickname}**"));
+
 
 		[PluginEvent(ServerEventType.PlayerDamage), PluginPriority(LoadPriority.Lowest)]
-		public void PlayerDamageEvent(Player victim, Player attacker, DamageHandlerBase damageHandler)
+		public void PlayerDamageEvent(PlayerDamageEvent args)
 		{
-			if (attacker == null || victim == null || !RoundInProgress)
+			if (args.Player == null || args.Target == null || !RoundInProgress)
 				return;
 
-			if (damageHandler is AttackerDamageHandler aDH)
+			if (args.DamageHandler is AttackerDamageHandler aDH)
 			{
-				if (aDH.IsSuicide || attacker.UserId == victim.UserId)
+				if (aDH.IsSuicide || args.Player.UserId == args.Target.UserId)
 				{
-					DiscordLab.Bot.SendMessage(new Msg($"{victim.ToLogString()} damaged themselves using {aDH.GetDamageSource()}"));
+					DiscordLab.Bot.SendMessage(new Msg($"{args.Target.ToLogString()} damaged themselves using {aDH.GetDamageSource()}"));
 				}
-				else if (aDH.IsFriendlyFire || IsFF(victim, attacker))
+				else if (aDH.IsFriendlyFire || Extensions.IsFF(args.Target, args.Player))
 				{
-					if (attacker.TemporaryData.Contains("ffdstop") && attacker.UserId != victim.UserId)
+					if (args.Player.TemporaryData.Contains("ffdstop") && args.Player.UserId != args.Target.UserId)
 					{
-						DiscordLab.Bot.SendMessage(new Msg($"FFD Blocked {attacker.Nickname} -> {victim.Nickname} ({aDH.GetDamageSource()})"));
-						attacker.TemporaryData.Remove("ffdstop");
+						DiscordLab.Bot.SendMessage(new Msg($"FFD Blocked {args.Player.Nickname} -> {args.Target.Nickname} ({aDH.GetDamageSource()})"));
+						args.Player.TemporaryData.Remove("ffdstop");
 					}
 					else
 					{
-						DiscordLab.Bot.SendMessage(new Msg($"**{attacker.Role} {attacker.ToLogString()} damaged {victim.Role} {victim.ToLogString()} using {aDH.GetDamageSource()} for {Math.Round(aDH.Damage, 1)}**"));
+						DiscordLab.Bot.SendMessage(new Msg($"**{args.Player.Role} {args.Player.ToLogString()} -> {args.Target.Role} {args.Target.ToLogString()} -> {Math.Round(aDH.Damage, 1)} ({aDH.GetDamageSource()})**"));
 					}
 				}
-				else if (victim.IsDisarmed && !attacker.ReferenceHub.IsSCP())
+				else if (args.Target.IsDisarmed && !args.Player.ReferenceHub.IsSCP())
 				{
-					DiscordLab.Bot.SendMessage(new Msg($"__{attacker.Role} {attacker.ToLogString()} damaged {victim.Role} {victim.ToLogString()} using {aDH.GetDamageSource()} for {Math.Round(aDH.Damage, 1)}__"));
+					DiscordLab.Bot.SendMessage(new Msg($"__{args.Player.Role} {args.Player.ToLogString()} -> {args.Target.Role} {args.Target.ToLogString()} -> {Math.Round(aDH.Damage, 1)} ({aDH.GetDamageSource()})__"));
 				}
 				else
 				{
-					DiscordLab.Bot.SendMessage(new Msg($"{attacker.Nickname} -> {victim.Nickname} -> {Math.Round(aDH.Damage, 1)} ({aDH.GetDamageSource()})"));
+					DiscordLab.Bot.SendMessage(new Msg($"{args.Player.Nickname} -> {args.Target.Nickname} -> {Math.Round(aDH.Damage, 1)} ({aDH.GetDamageSource()})"));
 				}
 			}
-			else if (damageHandler is WarheadDamageHandler wDH)
+			else if (args.DamageHandler is WarheadDamageHandler wDH)
 			{
-				DiscordLab.Bot.SendMessage(new Msg($"{victim.ToLogString()} was partially vaporized by alpha warhead"));
+				DiscordLab.Bot.SendMessage(new Msg($"{args.Target.ToLogString()} was partially vaporized by alpha warhead"));
 			}
-			else if (damageHandler is UniversalDamageHandler uDH)
+			else if (args.DamageHandler is UniversalDamageHandler uDH)
 			{
-				//DiscordLab.Bot.SendMessage(new msgMessage($"{victim.ToLogString()} was damaged by {DeathTranslations.TranslationsById[uDH.TranslationId].LogLabel}"));
-			}
-		}
-		public bool IsFF(Player victim, Player attacker)
-		{
-			var victimRole = victim.ReferenceHub.roleManager.CurrentRole;
-			var attackerRole = attacker.ReferenceHub.roleManager.CurrentRole;
-
-			if (victimRole.Team == Team.SCPs || attackerRole.Team == Team.SCPs)
-				return false;
-
-			if ((victimRole.RoleTypeId == RoleTypeId.ClassD || isChaos(victim.Role)) && (attackerRole.Team == Team.ClassD || isChaos(attacker.Role)))
-			{
-				if (victim.Role == RoleTypeId.ClassD && attacker.Role == RoleTypeId.ClassD)
-					return false;
-				return true;
-			}
-			else if ((victimRole.RoleTypeId == RoleTypeId.Scientist || isMtf(victim.Role)) && (attacker.Role == RoleTypeId.Scientist || isMtf(attacker.Role)))
-				return true;
-
-			return false;
-		}
-
-		private bool isChaos(RoleTypeId role)
-		{
-			switch (role)
-			{
-				case RoleTypeId.ChaosConscript:
-				case RoleTypeId.ChaosRifleman:
-				case RoleTypeId.ChaosRepressor:
-				case RoleTypeId.ChaosMarauder:
-					return true;
-				default:
-					return false;
-			}
-		}
-
-		private bool isMtf(RoleTypeId role)
-		{
-			switch (role)
-			{
-				case RoleTypeId.FacilityGuard:
-				case RoleTypeId.NtfCaptain:
-				case RoleTypeId.NtfSpecialist:
-				case RoleTypeId.NtfPrivate:
-				case RoleTypeId.NtfSergeant:
-					return true;
-				default:
-					return false;
-			}
-		}
-
-		private bool isSCP(RoleTypeId role)
-		{
-			switch (role)
-			{
-				case RoleTypeId.Scp173:
-				case RoleTypeId.Scp106:
-				case RoleTypeId.Scp049:
-				case RoleTypeId.Scp079:
-				case RoleTypeId.Scp096:
-				case RoleTypeId.Scp0492:
-				case RoleTypeId.Scp939:
-					return true;
-				default:
-					return false;
+				//DiscordLab.Bot.SendMessage(new msgMessage($"{args.Target.ToLogString()} was damaged by {DeathTranslations.TranslationsById[uDH.TranslationId].LogLabel}"));
 			}
 		}
 
 		[PluginEvent(ServerEventType.PlayerKicked)]
-		public void PlayerKickedEvent(Player player, ICommandSender sender, string reason)
+		public void PlayerKickedEvent(PlayerKickedEvent args)
 		{
-			if (!(sender is PlayerCommandSender pCS))
+			if (!(args.Issuer is PlayerCommandSender pCS))
 			{
-				DiscordLab.Bot.SendMessage(new Msg($"**Player Kicked!**```autohotkey\nUser: {player.ToLogString()}\nAdmin: SERVER\nReason: {(string.IsNullOrEmpty(reason) ? "No reason provided" : reason)}```"));
+				DiscordLab.Bot.SendMessage(new Msg($"**Player Kicked!**```autohotkey\nUser: {args.Player.ToLogString()}\nAdmin: SERVER\nReason: {(string.IsNullOrEmpty(args.Reason) ? "No reason provided" : args.Reason)}```"));
 			}
 			else
 			{
 				var admin = Player.Get(pCS.PlayerId);
-				DiscordLab.Bot.SendMessage(new Msg($"**Player Kicked!**```autohotkey\nUser: {player.ToLogString()}\nAdmin: {admin.ToLogString()}\nReason: {(string.IsNullOrEmpty(reason) ? "No reason provided" : reason)}```"));
+				DiscordLab.Bot.SendMessage(new Msg($"**Player Kicked!**```autohotkey\nUser: {args.Player.ToLogString()}\nAdmin: {admin.ToLogString()}\nReason: {(string.IsNullOrEmpty(args.Reason) ? "No reason provided" : args.Reason)}```"));
 			}
 		}
 
-		public void PlayerPreauthEvent(string userid, string ipAddress, long expiration, CentralAuthPreauthFlags flags, string region, byte[] signature, ConnectionRequest connectionRequest, int readerStartPosition) { }
-
 		[PluginEvent(ServerEventType.PlayerChangeRole)]
-		public void RoleChangeEvent(Player player, PlayerRoleBase oldRole, RoleTypeId newRole, RoleChangeReason reason)
+		public void RoleChangeEvent(PlayerChangeRoleEvent args)
 		{
-			if (newRole == RoleTypeId.Spectator || newRole == RoleTypeId.None || oldRole.RoleTypeId == RoleTypeId.Spectator || oldRole.RoleTypeId == RoleTypeId.None)
+			if (args.NewRole == RoleTypeId.Spectator || args.NewRole == RoleTypeId.None || args.OldRole.RoleTypeId == RoleTypeId.Spectator || args.OldRole.RoleTypeId == RoleTypeId.None)
 				return;
 
-			DiscordLab.Bot.SendMessage(new Msg($"{player.ToLogString()} changed from {oldRole.RoleTypeId} to {newRole} ({reason})"));
+			DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} changed from {args.OldRole.RoleTypeId} to {args.NewRole} ({args.ChangeReason})"));
 		}
 
+
 		[PluginEvent(ServerEventType.PlayerSpawn)]
-		public void PlayerSpawnEvent(Player player, RoleTypeId role)
+		public void PlayerSpawnEvent(PlayerSpawnEvent args)
 		{
-			if (role == RoleTypeId.None || role == RoleTypeId.Spectator || role == RoleTypeId.Overwatch || !RoundInProgress)
+			if (args.Role == RoleTypeId.None || args.Role == RoleTypeId.Spectator || args.Role == RoleTypeId.Overwatch || !RoundInProgress)
 				return;
-			DiscordLab.Bot.SendMessage(new Msg($"{player.ToLogString()} spawned as {role}"));
+			DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} spawned as {args.Role}"));
 		}
 
 		[PluginEvent(ServerEventType.RoundEnd)]
-		public void RoundEndEvent(LeadingTeam team)
+		public void RoundEndEvent(RoundEndEvent args)
 		{
 			RoundInProgress = false;
 			RoundEndTime = DateTime.Now;
@@ -262,62 +234,48 @@ namespace DiscordLab
 			DiscordLab.Bot.SendMessage(new Msg("**A new round has begun**"));
 		}
 
-		[PluginEvent(ServerEventType.WaitingForPlayers)]
-		public void WaitingForPlayersEvent() => DiscordLab.Bot.SendMessage(new Msg("The server is ready and waiting for players"));
+
 
 		[PluginEvent(ServerEventType.WarheadStart)]
-		public void WarheadStartEvent(bool isAutomatic, Player player, bool isResumed)
+		public void WarheadStartEvent(WarheadStartEvent args)
 		{
-			if (!isAutomatic)
+			if (!args.IsAutomatic)
 			{
-				if (!isResumed)
-					DiscordLab.Bot.SendMessage(new Msg($"{player.ToLogString()} has started the alpha warhead countdown"));
+				if (!args.IsResumed)
+					DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} has started the alpha warhead countdown"));
 				else
-					DiscordLab.Bot.SendMessage(new Msg($"{player.ToLogString()} has resumed the alpha warhead countdown. Remaining time: {Warhead.DetonationTime.ToString("00")} seconds"));
+					DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} has resumed the alpha warhead countdown. Remaining time: {Warhead.DetonationTime.ToString("00")} seconds"));
 			}
 			else
 				DiscordLab.Bot.SendMessage(new Msg($"The automatic alpha warhead countdown has begun"));
 		}
 
-		[PluginEvent(ServerEventType.WarheadStop)]
-		public void WarheadStopEvent(Player player) => DiscordLab.Bot.SendMessage(new Msg($"{player.ToLogString()} has suspended the alpha warhead countdown"));
 
-		[PluginEvent(ServerEventType.WarheadDetonation)]
-		public void WarheadDetonateEvent() => DiscordLab.Bot.SendMessage(new Msg($"The alpha warhead has detonated"));
-
-		[PluginEvent(ServerEventType.PlayerMuted)]
-		public void PlayerMuteEvent(Player player, bool isIntercom) => DiscordLab.Bot.SendMessage(new Msg($"{player.ToLogString()} has been {(isIntercom ? "intercom" : "")}muted"));
-
-		[PluginEvent(ServerEventType.PlayerUnmuted)]
-		public void PlayerUnmuteEvent(Player player, bool isIntercom) => DiscordLab.Bot.SendMessage(new Msg($"{player.ToLogString()} is no longer {(isIntercom ? "intercom " : "")}muted"));
 
 		[PluginEvent(ServerEventType.RemoteAdminCommand)]
-		public void RemoteAdminCommandEvent(CommandSender commandSender, string command, string[] arguments)
+		public void RemoteAdminCommandEvent(RemoteAdminCommandEvent args)
 		{
-			Console.WriteLine(commandSender.SenderId);
-
-			if (!(commandSender is PlayerCommandSender pCS))
+			if (!(args.Sender is PlayerCommandSender pCS))
 				return;
 
 			var admin = Player.Get(pCS.PlayerId);
 
-			DiscordLab.Bot.SendMessage(new Msg($"{admin.ToLogString()} has run the following command: **{(arguments.Length > 0 ? $"{command} {string.Join(" ", arguments)}" : $"{command}")}**"));
+			DiscordLab.Bot.SendMessage(new Msg($"{admin.ToLogString()} has run the following command: **{(args.Arguments.Length > 0 ? $"{args.Command} {string.Join(" ", args.Arguments)}" : $"{args.Command}")}**"));
 		}
 
 		[PluginEvent(ServerEventType.ConsoleCommand)]
-		public void ConsoleCommandCommandEvent(CommandSender commandSender, string command, string[] arguments)
+		public void ConsoleCommandCommandEvent(ConsoleCommandEvent args)
 		{
-			Console.WriteLine(commandSender.SenderId);
+            DiscordLab.Bot.SendMessage(new Msg($"Server console has run the following command: **{(args.Arguments.Length > 0 ? $"{args.Command} {string.Join(" ", args.Arguments)}" : $"{args.Command}")}**"));
+        }
 
-			//if (!(commandSender is PlayerCommandSender pCS))
-			//	return;
-
-			//var admin = Player.Get(pCS.PlayerId);
-
-			//DiscordLab.Bot.SendMessage(new Msg($"{admin.ToLogString()} has run the following command: **{(arguments.Length > 0 ? $"{command} {string.Join(" ", arguments)}" : $"{command}")}**"));
-		}
+		[PluginEvent(ServerEventType.PlayerGameConsoleCommand)]
+		public void PlayerConsoleCommandEvent(PlayerGameConsoleCommandEvent args)
+		{
+            DiscordLab.Bot.SendMessage(new Msg($"{args.Player.ToLogString()} has run the following console command: **{(args.Arguments.Length > 0 ? $"{args.Command} {string.Join(" ", args.Arguments)}" : $"{args.Command}")}**"));
+        }
 
 		[PluginEvent(ServerEventType.Scp079UseTesla)]
-		public void TeslaTriggerEvent(Player player, TeslaGate tesla) => DiscordLab.Bot.SendMessage(new Msg($"{player.Nickname} triggered a tesla gate as SCP-079"));
+		public void TeslaTriggerEvent(Scp079UseTeslaEvent args) => DiscordLab.Bot.SendMessage(new Msg($"{args.Player.Nickname} triggered a tesla gate as SCP-079"));
 	}
 }

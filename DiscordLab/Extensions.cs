@@ -1,6 +1,8 @@
-﻿using PlayerRoles.PlayableScps.Scp939;
+﻿using PlayerRoles;
+using PlayerRoles.PlayableScps.Scp939;
 using PlayerStatsSystem;
 using PluginAPI.Core;
+using PluginAPI.Core.Interfaces;
 using RemoteAdmin;
 using System;
 using System.Collections.Generic;
@@ -38,6 +40,72 @@ namespace DiscordLab
 			else return "THIS SHOULD NEVER APPEAR!!!";
 		}
 
-		public static string ToLogString(this Player plr) => $"{plr.Nickname} ({plr.UserId})";
-	}
+		public static string ToLogString(this IPlayer plr) => $"{plr.Nickname} ({plr.UserId})";
+
+        public static bool IsChaos(Player player)
+        {
+            switch (player.Role)
+            {
+                case RoleTypeId.ChaosConscript:
+                case RoleTypeId.ChaosRifleman:
+                case RoleTypeId.ChaosRepressor:
+                case RoleTypeId.ChaosMarauder:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsMtf(Player player)
+        {
+            switch (player.Role)
+            {
+                case RoleTypeId.FacilityGuard:
+                case RoleTypeId.NtfCaptain:
+                case RoleTypeId.NtfSpecialist:
+                case RoleTypeId.NtfPrivate:
+                case RoleTypeId.NtfSergeant:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsSCP(Player player)
+        {
+            switch (player.Role)
+            {
+                case RoleTypeId.Scp173:
+                case RoleTypeId.Scp106:
+                case RoleTypeId.Scp049:
+                case RoleTypeId.Scp079:
+                case RoleTypeId.Scp096:
+                case RoleTypeId.Scp0492:
+                case RoleTypeId.Scp939:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsFF(Player victim, Player Attacker)
+        {
+            var victimRole = victim.ReferenceHub.roleManager.CurrentRole;
+            var AttackerRole = Attacker.ReferenceHub.roleManager.CurrentRole;
+
+            if (victimRole.Team == Team.SCPs || AttackerRole.Team == Team.SCPs)
+                return false;
+
+            if ((victimRole.RoleTypeId == RoleTypeId.ClassD || IsChaos(victim)) && (AttackerRole.Team == Team.ClassD || IsChaos(Attacker)))
+            {
+                if (victim.Role == RoleTypeId.ClassD && Attacker.Role == RoleTypeId.ClassD)
+                    return false;
+                return true;
+            }
+            else if ((victimRole.RoleTypeId == RoleTypeId.Scientist || IsMtf(victim)) && (Attacker.Role == RoleTypeId.Scientist || IsMtf(Attacker)))
+                return true;
+
+            return false;
+        }
+    }
 }
