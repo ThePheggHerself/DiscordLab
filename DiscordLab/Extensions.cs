@@ -1,4 +1,6 @@
 ﻿using PlayerRoles;
+using PlayerRoles.PlayableScps.Scp1507;
+using PlayerRoles.PlayableScps.Scp3114;
 using PlayerRoles.PlayableScps.Scp939;
 using PlayerStatsSystem;
 using PluginAPI.Core;
@@ -14,30 +16,38 @@ namespace DiscordLab
 	{
 		public static string GetDamageSource(this AttackerDamageHandler aDH)
 		{
-			if (aDH is FirearmDamageHandler fDH)
-				return fDH.WeaponType.ToString();
-			else if (aDH is ExplosionDamageHandler eDH)
-				return "Grenade";
-			else if (aDH is MicroHidDamageHandler mhidDH)
-				return "Micro HID";
-			else if (aDH is RecontainmentDamageHandler reconDH)
-				return "Recontainment";
-			else if (aDH is Scp018DamageHandler scp018DH)
-				return "SCP 018";
-			else if (aDH is Scp096DamageHandler scp096DH)
-				return "SCP 096";
-			else if (aDH is Scp049DamageHandler scp049DH)
-				return "SCP 049";
-			else if (aDH is Scp939DamageHandler scp939DH)
-				return "SCP 939";
-			else if (aDH is ScpDamageHandler scpDH)
-				return scpDH.Attacker.Role.ToString();
-			else if (aDH is DisruptorDamageHandler dDH)
-				return "Particle Disruptor";
-			else if (aDH is JailbirdDamageHandler jDH)
-				return "Jailbird";
+            if (aDH is FirearmDamageHandler fDH)
+                return fDH.WeaponType.ToString();
+            else if (aDH is ExplosionDamageHandler eDH)
+                return "Grenade";
+            else if (aDH is MicroHidDamageHandler mhidDH)
+                return "Micro HID";
+            else if (aDH is RecontainmentDamageHandler reconDH)
+                return "Recontainment";
+            else if (aDH is Scp018DamageHandler scp018DH)
+                return "SCP 018";
+            else if (aDH is Scp096DamageHandler scp096DH)
+                return "SCP 096";
+            else if (aDH is Scp049DamageHandler scp049DH)
+                return "SCP 049";
+            else if (aDH is Scp939DamageHandler scp939DH)
+                return "SCP 939";
+            else if (aDH is Scp3114DamageHandler scp3114DH)
+                return "SCP 3114";
+            else if (aDH is ScpDamageHandler scpDH)
+                return scpDH.Attacker.Role.ToString();
+            else if (aDH is DisruptorDamageHandler dDH)
+                return "Particle Disruptor";
+            else if (aDH is JailbirdDamageHandler jDH)
+                return "Jailbird";
+            else if (aDH is SnowballDamageHandler sDH)
+                return "Snowball";
+            else if (aDH is Scp1507DamageHandler scp1507DH)
+                return "Flamingo";
 
-			else return "THIS SHOULD NEVER APPEAR!!!";
+
+
+            else return $"{aDH.GetType().Name}";
 		}
 
 		public static string ToLogString(this IPlayer plr) => $"{plr.Nickname} ({plr.UserId})";
@@ -82,6 +92,10 @@ namespace DiscordLab
                 case RoleTypeId.Scp096:
                 case RoleTypeId.Scp0492:
                 case RoleTypeId.Scp939:
+                case RoleTypeId.Scp3114:
+                case RoleTypeId.Flamingo:
+                case RoleTypeId.ZombieFlamingo:
+                case RoleTypeId.AlphaFlamingo:
                     return true;
                 default:
                     return false;
